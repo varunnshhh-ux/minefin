@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #F5F0E6;
+    color: #231D17;
+  }
+}
+
+@layer components {
+  .block-card {
+    @apply bg-parchment-50 border-2 border-parchment-300 rounded-md shadow-block;
+  }
+
+  .block-card-interactive {
+    @apply block-card transition-transform duration-150 hover:-translate-y-0.5;
+  }
+
+  .pixel-btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-parchment-50 bg-forest-600 border-2 border-forest-800 rounded-md shadow-block-sm hover:bg-forest-700 active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+  }
+
+  .pixel-btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-earth-800 bg-parchment-100 border-2 border-parchment-300 rounded-md shadow-block-sm hover:bg-parchment-200 active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors;
+  }
+
+  .pixel-input {
+    @apply w-full px-3 py-2 text-sm bg-white border-2 border-parchment-300 rounded-md text-earth-900 placeholder:text-earth-700/50 focus:outline-none focus:border-forest-600;
+  }
+}
