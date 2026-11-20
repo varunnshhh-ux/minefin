@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import {
   LayoutDashboard,
   ListOrdered,
+  LogIn,
   LogOut,
   Menu,
   MessageSquare,
@@ -35,6 +36,10 @@ export function App() {
   const [activeSection, setActiveSection] = useState<NavSection>('dashboard');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signup');
+  const [authPromptMessage, setAuthPromptMessage] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     if (!supabase) return;
 
@@ -55,6 +60,35 @@ export function App() {
   const finance = useFinanceData(session?.user?.id);
   const currency = finance.profile?.currency || 'INR';
 
+  const openAuthPrompt = (mode: 'signin' | 'signup', message?: string) => {
+    setAuthModalMode(mode);
+    setAuthPromptMessage(message);
+    setAuthModalOpen(true);
+  };
+
+  const requireAuth = <T extends unknown[]>(
+    fn: (...args: T) => Promise<void>,
+    message: string
+  ) => {
+    return async (...args: T) => {
+      if (!session) {
+        openAuthPrompt('signup', message);
+        return;
+      }
+      await fn(...args);
+    };
+  };
+
+  const requireAuthBulkImport = async (
+    rows: Parameters<typeof finance.bulkImportTransactions>[0]
+  ) => {
+    if (!session) {
+      openAuthPrompt('signup', 'Create a free account to import and save CSV transactions.');
+      return { inserted: 0 };
+    }
+    return finance.bulkImportTransactions(rows);
+  };
+
   const handleSignOut = async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -68,7 +102,7 @@ export function App() {
     );
   }
 
-  if (!isSupabaseConfigured || !session) {
+  if (!isSupabaseConfigured) {
     return <AuthView />;
   }
 
@@ -110,17 +144,32 @@ export function App() {
         </div>
 
         <div className="pt-4 border-t-2 border-parchment-200 space-y-2">
-          <p className="px-2 text-xs text-earth-700 truncate" title={session.user.email}>
-            {session.user.email}
-          </p>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="pixel-btn-secondary w-full text-xs py-2"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Sign Out
-          </button>
+          {session ? (
+            <>
+              <p className="px-2 text-xs text-earth-700 truncate" title={session.user.email}>
+                {session.user.email}
+              </p>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="pixel-btn-secondary w-full text-xs py-2"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                openAuthPrompt('signup', 'Create a free account to save your records.')
+              }
+              className="pixel-btn-primary w-full text-xs py-2"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              Sign In / Sign Up
+            </button>
+          )}
         </div>
       </aside>
 
@@ -163,21 +212,66 @@ export function App() {
             );
           })}
           <div className="pt-2 border-t border-parchment-200 flex items-center justify-between px-2">
-            <span className="text-xs text-earth-700 truncate">{session.user.email}</span>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="text-xs font-semibold text-red-700 flex items-center gap-1"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              Sign Out
-            </button>
+            {session ? (
+              <>
+                <span className="text-xs text-earth-700 truncate">{session.user.email}</span>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="text-xs font-semibold text-red-700 flex items-center gap-1"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  openAuthPrompt('signup', 'Create a free account to save your records.');
+                }}
+                className="pixel-btn-primary w-full text-xs py-2"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                Sign In / Sign Up
+              </button>
+            )}
           </div>
         </div>
       )}
 
       {/* Main Content */}
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto space-y-5">
+        {!session && (
+          <div className="p-3.5 bg-forest-50 border-2 border-forest-600 rounded-md flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs sm:text-sm text-forest-800 font-medium">
+              You are previewing MINEFIN. Create a free account when you&apos;re ready to save
+              transactions, budgets, and goals.
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  openAuthPrompt('signin', 'Sign in to load your saved MINEFIN records.')
+                }
+                className="pixel-btn-secondary text-xs py-1.5 px-3"
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  openAuthPrompt('signup', 'Create a free account to save your financial data.')
+                }
+                className="pixel-btn-primary text-xs py-1.5 px-3"
+              >
+                Create Free Account
+              </button>
+            </div>
+          </div>
+        )}
+
         {finance.error && (
           <div className="p-3 bg-red-50 border-2 border-red-300 rounded-md text-sm text-red-800">
             {finance.error}
@@ -200,10 +294,19 @@ export function App() {
             transactions={finance.transactions}
             currency={currency}
             loading={finance.loading}
-            onAdd={finance.addTransaction}
-            onUpdate={finance.updateTransaction}
-            onDelete={finance.deleteTransaction}
-            onBulkImport={finance.bulkImportTransactions}
+            onAdd={requireAuth(
+              finance.addTransaction,
+              'Sign up or sign in to save your first transaction.'
+            )}
+            onUpdate={requireAuth(
+              finance.updateTransaction,
+              'Sign up or sign in to edit transactions.'
+            )}
+            onDelete={requireAuth(
+              finance.deleteTransaction,
+              'Sign up or sign in to delete transactions.'
+            )}
+            onBulkImport={requireAuthBulkImport}
           />
         )}
 
@@ -212,8 +315,14 @@ export function App() {
             budgets={finance.budgets}
             transactions={finance.transactions}
             currency={currency}
-            onSave={finance.saveBudget}
-            onDelete={finance.deleteBudget}
+            onSave={requireAuth(
+              finance.saveBudget,
+              'Sign up or sign in to save monthly budgets.'
+            )}
+            onDelete={requireAuth(
+              finance.deleteBudget,
+              'Sign up or sign in to delete budgets.'
+            )}
           />
         )}
 
@@ -221,8 +330,14 @@ export function App() {
           <SavingsView
             goals={finance.savingsGoals}
             currency={currency}
-            onSave={finance.saveSavingsGoal}
-            onDelete={finance.deleteSavingsGoal}
+            onSave={requireAuth(
+              finance.saveSavingsGoal,
+              'Sign up or sign in to save your savings goals.'
+            )}
+            onDelete={requireAuth(
+              finance.deleteSavingsGoal,
+              'Sign up or sign in to delete savings goals.'
+            )}
           />
         )}
 
@@ -230,12 +345,30 @@ export function App() {
           <MiloChatView
             messages={finance.messages}
             currency={currency}
-            onAppendMessage={finance.appendMiloMessage}
-            onSaveTransaction={finance.addTransaction}
-            onClearHistory={finance.clearMiloHistory}
+            onAppendMessage={requireAuth(
+              finance.appendMiloMessage,
+              'Sign up or sign in to chat with MILO and save transactions.'
+            )}
+            onSaveTransaction={requireAuth(
+              finance.addTransaction,
+              'Sign up or sign in to save this transaction.'
+            )}
+            onClearHistory={requireAuth(
+              finance.clearMiloHistory,
+              'Sign up or sign in to manage chat history.'
+            )}
           />
         )}
       </main>
+
+      {authModalOpen && (
+        <AuthView
+          isModal
+          defaultMode={authModalMode}
+          promptMessage={authPromptMessage}
+          onClose={() => setAuthModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
