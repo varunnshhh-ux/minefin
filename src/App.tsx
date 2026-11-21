@@ -170,6 +170,33 @@ export function App() {
               Sign In / Sign Up
             </button>
           )}
+          ) : (
+            <button
+              type="button"
+              onClick={() =>
+                openAuthPrompt('signup', 'Create a free account to save your records.')
+              }
+              className="pixel-btn-primary w-full text-xs py-2"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              Sign In / Sign Up
+            </button>
+          )}
+
+          <div className="pt-1 flex justify-center">
+            <a
+              href="https://destroy.spritefusion.com/?from=badge&url=https://minefin-omega.vercel.app"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src="https://destroy.spritefusion.com/badge.svg"
+                alt="Destroy this website"
+                width={180}
+                height={40}
+              />
+            </a>
+         </div>
         </div>
       </aside>
 
